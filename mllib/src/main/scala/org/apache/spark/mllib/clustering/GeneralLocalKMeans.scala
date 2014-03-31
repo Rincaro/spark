@@ -53,7 +53,6 @@ private[mllib] object GeneralLocalKMeans {
         w * GeneralKMeans.pointCost(measure, curCenters, p)
       }.sum
       
-      
       val r = rand.nextDouble() * sum
       var cumulativeScore = 0.0
       var j = 0
@@ -86,8 +85,7 @@ private[mllib] object GeneralLocalKMeans {
       }
         
       // Update centers
-      var j = 0
-      while (j < k) {
+      for( j <- 0 until k ) {
         if (counts(j) == 0.0) {
           // Assign center to a random point
           centers(j) = points(rand.nextInt(points.length))
@@ -95,7 +93,6 @@ private[mllib] object GeneralLocalKMeans {
           sums(j) /= counts(j)
           centers(j) = sums(j)
         }
-        j += 1
       }
       iteration += 1
     }

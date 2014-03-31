@@ -35,6 +35,11 @@ class GeneralKMeansModel(val measure: BregmanDivergenceMeasure.DivergenceFunc, v
   def predict(point: Vector): Int = {
     GeneralKMeans.findClosest(measure, clusterCenters, point.toBreeze)._1
   }
+  
+    /** Maps given points to their cluster indices. */
+  def predict(points: RDD[Vector]): RDD[Int] = {
+    points.map(p => GeneralKMeans.findClosest(measure, clusterCenters, p.toBreeze)._1)
+  }
 
   /**
    * Return the K-means cost (sum of squared distances of points to their nearest center) for this

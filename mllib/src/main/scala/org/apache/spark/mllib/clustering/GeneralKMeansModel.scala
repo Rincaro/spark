@@ -30,7 +30,7 @@ class GeneralKMeansModel(val measure: BregmanDivergenceMeasure.DivergenceFunc, v
   /** Total number of clusters. */
   def k: Int = clusterCenters.length
   
-  val breezeCenters = clusterCenters.map(c => c.toBreeze)
+  lazy val breezeCenters = clusterCenters.map(c => c.toBreeze)
 
   /** Return the cluster index that a given point belongs to. */
   def predict(point: Vector): Int = {

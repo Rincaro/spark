@@ -17,20 +17,22 @@
 
 package org.apache.spark.mllib.clustering
 
-
+import scala.Array.canBuildFrom
 import scala.collection.mutable.ArrayBuffer
-import breeze.linalg.{DenseVector => BDV, Vector => BV, norm => breezeNorm}
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd.RDD
+
 import org.apache.spark.Logging
-import org.apache.spark.mllib.util.MLUtils
-import org.apache.spark.mllib.linalg.{Vector, Vectors}
-
-
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext.DoubleAccumulatorParam
+import org.apache.spark.SparkContext.rddToPairRDDFunctions
+import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.rdd.RDD
 import org.apache.spark.util.random.XORShiftRandom
 
-import BregmanDivergenceMeasure._
+import BregmanDivergenceMeasure.DivergenceFunc
+import BregmanDivergenceMeasure.euclideanDistanceSquared
+import breeze.linalg.{DenseVector => BDV}
+import breeze.linalg.{Vector => BV}
 
 
 /**

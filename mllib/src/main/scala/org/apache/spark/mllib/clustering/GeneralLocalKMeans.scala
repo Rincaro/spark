@@ -47,8 +47,9 @@ private[mllib] object GeneralLocalKMeans {
     centers(0) = pickWeighted(rand, points, weights)
     for (i <- 1 until k) {
       // Pick the next center with a probability proportional to cost under current centers
-      val curCenters = centers.slice(0, i)
-      val sum = points.zip(weights).map { case (p, w) =>
+
+      val curCenters = centers.view.take(i)
+      val sum = points.view.zip(weights).map { case (p, w) =>
         w * GeneralKMeans.pointCost(measure, curCenters, p)
       }.sum
       
@@ -73,7 +74,8 @@ private[mllib] object GeneralLocalKMeans {
         BDV.zeros[Double](dimensions).asInstanceOf[BV[Double]]
       )
       val counts = Array.fill(k)(0.0)
-      for ((p, i) <- points.zipWithIndex) {
+      
+      for ((p, i) <- points.view.zipWithIndex) {
         val index = GeneralKMeans.findClosest(measure, centers, p)._1
         breeze.linalg.axpy(weights(i), p, sums(index))
         counts(index) += weights(i)
@@ -82,6 +84,7 @@ private[mllib] object GeneralLocalKMeans {
           oldClosest(i) = index
         }
       }
+        
       // Update centers
       var j = 0
       while (j < k) {

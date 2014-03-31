@@ -24,20 +24,21 @@ import org.apache.spark.mllib.linalg.Vector
 /**
  * A clustering model for K-means. Each point belongs to the cluster with the closest center.
  */
-class EuclideanKMeansModel(val clusterCenters: Array[Vector]) extends Serializable with KMeansModel {
+class EuclideanKMeansModel( val clusterCenters: Array[Vector]) extends Serializable with KMeansModel {
 
+  lazy val centers = clusterCenters.map(new BreezeVectorWithNorm(_))
+  
   /** Total number of clusters. */
-  def k: Int = clusterCenters.length
+  def k: Int = clusterCenters.size
 
   /** Returns the cluster index that a given point belongs to. */
   def predict(point: Vector): Int = {
-    KMeans.findClosest(clusterCentersWithNorm, new BreezeVectorWithNorm(point))._1
+    KMeans.findClosest(centers, new BreezeVectorWithNorm(point))._1
   }
 
   /** Maps given points to their cluster indices. */
   def predict(points: RDD[Vector]): RDD[Int] = {
-    val centersWithNorm = clusterCentersWithNorm
-    points.map(p => KMeans.findClosest(centersWithNorm, new BreezeVectorWithNorm(p))._1)
+    points.map(p => KMeans.findClosest(centers, new BreezeVectorWithNorm(p))._1)
   }
 
   /**
@@ -45,10 +46,6 @@ class EuclideanKMeansModel(val clusterCenters: Array[Vector]) extends Serializab
    * model on the given data.
    */
   def computeCost(data: RDD[Vector]): Double = {
-    val centersWithNorm = clusterCentersWithNorm
-    data.map(p => KMeans.pointCost(centersWithNorm, new BreezeVectorWithNorm(p))).sum()
+    data.map(p => KMeans.pointCost(centers, new BreezeVectorWithNorm(p))).sum()
   }
-
-  private def clusterCentersWithNorm: Iterable[BreezeVectorWithNorm] =
-    clusterCenters.map(new BreezeVectorWithNorm(_))
 }

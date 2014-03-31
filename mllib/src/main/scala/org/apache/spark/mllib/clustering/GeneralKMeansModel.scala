@@ -17,28 +17,29 @@
 
 package org.apache.spark.mllib.clustering
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext._
+import scala.Array.canBuildFrom
 
+import org.apache.spark.SparkContext.doubleRDDToDoubleRDDFunctions
 import org.apache.spark.mllib.linalg.Vector
-
-import breeze.linalg.{DenseVector => BDV, Vector => BV, norm => breezeNorm}
+import org.apache.spark.rdd.RDD
 
 /**
  * A clustering model for K-means. Each point belongs to the cluster with the closest center.
  */
-class GeneralKMeansModel(val measure: BregmanDivergenceMeasure.DivergenceFunc, val clusterCenters: Array[BV[Double]]) extends Serializable with KMeansModel {
+class GeneralKMeansModel(val measure: BregmanDivergenceMeasure.DivergenceFunc, val clusterCenters: Array[Vector]) extends Serializable with KMeansModel {
   /** Total number of clusters. */
   def k: Int = clusterCenters.length
+  
+  val breezeCenters = clusterCenters.map(c => c.toBreeze)
 
   /** Return the cluster index that a given point belongs to. */
   def predict(point: Vector): Int = {
-    GeneralKMeans.findClosest(measure, clusterCenters, point.toBreeze)._1
+    GeneralKMeans.findClosest(measure, breezeCenters, point.toBreeze)._1
   }
   
     /** Maps given points to their cluster indices. */
   def predict(points: RDD[Vector]): RDD[Int] = {
-    points.map(p => GeneralKMeans.findClosest(measure, clusterCenters, p.toBreeze)._1)
+    points.map(p => GeneralKMeans.findClosest(measure, breezeCenters, p.toBreeze)._1)
   }
 
   /**
@@ -46,6 +47,6 @@ class GeneralKMeansModel(val measure: BregmanDivergenceMeasure.DivergenceFunc, v
    * model on the given data.
    */
   def computeCost(data: RDD[Vector]): Double = {
-    data.map(p => GeneralKMeans.pointCost(measure, clusterCenters, p.toBreeze)).sum()
+    data.map(p => GeneralKMeans.pointCost(measure, breezeCenters, p.toBreeze)).sum()
   }
 }

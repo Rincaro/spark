@@ -192,7 +192,7 @@ class KMeansImpl(
     }
 
     val bestRun = costs.zipWithIndex.min._2
-    new GeneralKMeansModel(measure, centers(bestRun))
+    new GeneralKMeansModel(measure, centers(bestRun).map(c => Vectors.fromBreeze(c)))
   }
 
   /**

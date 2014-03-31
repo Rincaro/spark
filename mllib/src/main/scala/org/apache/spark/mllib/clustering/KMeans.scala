@@ -109,7 +109,7 @@ class KMeans private (
    * Train a K-means model on the given set of points; `data` should be cached for high
    * performance, because this is an iterative algorithm.
    */
-  def run(data: RDD[Vector]): KMeansModel = {
+  def run(data: RDD[Vector]): EuclideanKMeansModel = {
     // Compute squared norms and cache them.
     val norms = data.map(v => breezeNorm(v.toBreeze, 2.0))
     norms.persist()
@@ -124,7 +124,7 @@ class KMeans private (
   /**
    * Implementation of K-Means using breeze.
    */
-  private def runBreeze(data: RDD[BreezeVectorWithNorm]): KMeansModel = {
+  private def runBreeze(data: RDD[BreezeVectorWithNorm]): EuclideanKMeansModel = {
 
     val sc = data.sparkContext
 
@@ -222,7 +222,7 @@ class KMeans private (
 
     logInfo(s"The cost for the best run is $minCost.")
 
-    new KMeansModel(centers(bestRun).map(c => Vectors.fromBreeze(c.vector)))
+    new EuclideanKMeansModel(centers(bestRun).map(c => Vectors.fromBreeze(c.vector)))
   }
 
   /**
@@ -318,7 +318,7 @@ object KMeans {
       k: Int,
       maxIterations: Int,
       runs: Int = 1,
-      initializationMode: String = K_MEANS_PARALLEL): KMeansModel = {
+      initializationMode: String = K_MEANS_PARALLEL): EuclideanKMeansModel = {
     new KMeans().setK(k)
       .setMaxIterations(maxIterations)
       .setRuns(runs)

@@ -151,12 +151,14 @@ class KMeansImpl(
 
         val sums = Array.fill(runs, k)(BDV.zeros[Double](dims).asInstanceOf[BV[Double]])
         val counts = Array.fill(runs, k)(0.0D)
-
-        for (point <- points; (centers, runIndex) <- activeCenters.zipWithIndex) {
-          val (bestCenter, cost) = GeneralKMeans.findClosest(measure, centers, point._1)
-          costAccums(runIndex) += cost
-          sums(runIndex)(bestCenter) += point._1
-          counts(runIndex)(bestCenter) += point._2
+        
+        points.foreach { point =>
+          (0 until runs).foreach { i =>
+            val (bestCenter, cost) = GeneralKMeans.findClosest(measure, activeCenters(i), point._1)
+            costAccums(i) += cost
+            sums(i)(bestCenter) += (point._1 * point._2)
+            counts(i)(bestCenter) += point._2
+          }
         }
 
         val contribs = for (i <- 0 until runs; j <- 0 until k) yield {
@@ -220,29 +222,27 @@ class KMeansImpl(
     // On each step, sample 2 * k points on average for each run with probability proportional
     // to their squared distance from that run's current centers
     for (step <- 0 until initializationSteps) {
-      val centerArrays = centers.map(_.toArray)
       val sumCosts = data.flatMap { p =>
-        for (r <- 0 until runs) yield (r, GeneralKMeans.pointCost(measure, centerArrays(r), p._1))
+        for (r <- 0 until runs) yield (r, GeneralKMeans.pointCost(measure, centers(r), p._1))
       }.reduceByKey(_ + _).collectAsMap()
       val chosen = data.mapPartitionsWithIndex { (index, points) =>
         val rand = new XORShiftRandom(seed ^ (step << 16) ^ index)
-        for {
-          p <- points.map(x=>x._1)
-          r <- 0 until runs
-          if rand.nextDouble() < GeneralKMeans.pointCost(measure, centerArrays(r), p) * 2 * k / sumCosts(r)
-        } yield (r, p)
+        points.flatMap { p =>
+          (0 until runs).filter { r =>
+            rand.nextDouble() < 2.0 * GeneralKMeans.pointCost(measure, centers(r), p._1) * k / sumCosts(r)
+          }.map((_, p))
+        }
       }.collect()
       for ((r, p) <- chosen) {
-        centers(r) += p
+        centers(r) += p._1
       }
     }
 
     // Finally, we might have a set of more than k candidate centers for each run; weigh each
     // candidate by the number of points in the dataset mapping to it and run a local k-means++
     // on the weighted centers to pick just k of them
-    val centerArrays = centers.map(_.toArray)
     val weightMap = data.flatMap { point =>
-      for (r <- 0 until runs) yield ((r, GeneralKMeans.findClosest(measure, centerArrays(r), point._1)._1), 1.0)
+      for (r <- 0 until runs) yield ((r, GeneralKMeans.findClosest(measure, centers(r), point._1)._1), 1.0)
     }.reduceByKey(_ + _).collectAsMap()
     val finalCenters = (0 until runs).map { r =>
       val myCenters = centers(r).toArray
@@ -286,21 +286,28 @@ object GeneralKMeans {
   /**
    * Return the index of the closest point in `centers` to `point`, as well as its distance.
    */
-  def findClosest(measure: DivergenceFunc, centers: Array[BV[Double]], point: BV[Double]): (Int, Double) =
-    {
-      val d = 1.0 / 0.0
-      centers.view.zipWithIndex.foldLeft((0, d)) {
-        case ((bestIndex, bestDistance), (center, i)) =>
-          val distance = measure(point, center)
-          if (distance < bestDistance) (i, distance)
-          else (bestIndex, bestDistance)
+  private[mllib] def findClosest(
+      measure: DivergenceFunc, 
+      centers: TraversableOnce[BV[Double]],
+      point: BV[Double]): (Int, Double) = {
+    var bestDistance = Double.PositiveInfinity
+    var bestIndex = 0
+    var i = 0
+    centers.foreach { center =>
+        val distance: Double = measure(center, point)
+        if (distance < bestDistance) {
+          bestDistance = distance
+          bestIndex = i
       }
+      i += 1
     }
+    (bestIndex, bestDistance)
+  }
 
   /**
    * Return the K-means cost of a given point against the given cluster centers.
    */
-  def pointCost(measure: DivergenceFunc, centers: Array[BV[Double]], point: BV[Double]): Double = {
+  def pointCost(measure: DivergenceFunc, centers: TraversableOnce[BV[Double]], point: BV[Double]): Double = {
     findClosest(measure, centers, point)._2
   }
 
